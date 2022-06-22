@@ -12,26 +12,22 @@ namespace HomeWorkAutoServes
         {
             Serves serves = new Serves();
             bool isWork = true;
-            Console.WriteLine("Управление сервисом специализация которого продажа и установка шин.\n" +
+            Console.WriteLine("\nУправление сервисом специализация которого продажа и установка шин.\n" +
                 "Ваш слоган у нас есть все шины, а если нету то мы вам заплатим!");
 
             while (isWork)
             {
                 Console.WriteLine($"Баланс сервиса {serves.Money}");
-                Console.WriteLine(" 1 - Принять нового клиента. 2 - Показать все шины. 3 - Закрыть программу.");
+                Console.WriteLine(" 1 - Принять нового клиента. 2 - Закрыть программу.");
                 string userInput = Console.ReadLine();
 
                 switch (userInput)
                 {
                     case "1":
-                        serves.CreateClient();
+                        serves.ServeClient();
                         break;
 
                     case "2":
-                        serves.ShowAllTire();
-                        break;
-
-                    case "3":
                         isWork = false;
                         break;
                 }
@@ -41,60 +37,69 @@ namespace HomeWorkAutoServes
 
     class Serves
     {
+        private Stock _stock = new Stock();
         private int _money = 1000;
-        private Dictionary<Tire, int> _tires = new Dictionary<Tire, int>();
         private int _fine = 100;
-        private string _userInput = "";
-        private int _discDiameter = 0;
-        private int _width = 0;
-        private int _profile = 0;
-        private string _name = "";
 
         public int Money => _money;
 
-        public Serves()
-        {
-            AddTire();
-        }
-
-        public void CreateClient()
+        public void ServeClient()
         {
             bool isDone = false;
-            
+            string name = "";
+            int numberTire = 0;
+            int discDiameter = 0;
+            int width = 0;
+            int profile = 0;
+            int numberValidInputs = 4;
+            string userInput = "";
+
             while (isDone == false)
             {
+                _stock.ShowInfo();
                 int validInput = 0;
-                Console.WriteLine("Внесите требуемые параметры клиента.");
-                Console.WriteLine("Шины какой фирмы нужны клиенту");
-                _name = Console.ReadLine();
-                Console.WriteLine("Какaя размерность нужна клиенту");
-                _userInput = Console.ReadLine();
 
-                if (int.TryParse(_userInput, out int discDiameter))
+                Console.WriteLine("\nВнесите требуемые параметры клиента.");
+                Console.WriteLine("Шины какой фирмы нужны клиенту");
+                name = Console.ReadLine();
+                Console.WriteLine("Какaя размерность нужна клиенту");
+                userInput = Console.ReadLine();
+
+                if (int.TryParse(userInput, out int discDiameterInput))
                 {
-                    _discDiameter = discDiameter;
+                    discDiameter = discDiameterInput;
                     validInput++;
                 }
 
                 Console.WriteLine("Какая ширина нужна клиенту");
-                _userInput= Console.ReadLine();
+                userInput = Console.ReadLine();
 
-                if (int.TryParse(_userInput, out int width))
+                if (int.TryParse(userInput, out int widthInput))
                 {
-                    _width = width;
+                    width = widthInput;
                     validInput++;
                 }
 
                 Console.WriteLine("Какая высота шины нужна клиенту");
-                _userInput = Console.ReadLine();
+                userInput = Console.ReadLine();
 
-                if (int.TryParse(_userInput, out int profile))
+                if (int.TryParse(userInput, out int profileInput))
                 {
-                    _profile = profile;
+                    profile = profileInput;
                     validInput++;
                 }
 
-                if (validInput == 3)
+                Console.WriteLine("Какое количество шин требуется.");
+                userInput = Console.ReadLine();
+
+                if (int.TryParse(userInput, out int number))
+                {
+                    numberTire = number;
+                    validInput++;
+                }
+
+
+                if (validInput == numberValidInputs)
                 {
                     isDone = true;
                 }
@@ -102,72 +107,75 @@ namespace HomeWorkAutoServes
                 {
                     Console.WriteLine("Данные введены некорректно.");
                 }
-            } 
-            
-            Tire tire = new Tire(_name, _width, _profile, _discDiameter, 0);
-            PerformWork(tire);
-        }      
-        
-        public void ShowAllTire()
-        {
-            Console.WriteLine("Спиок шин на складе");
+            }
 
-            foreach (var item in _tires)
+            Tire tire = new Tire(name, width, profile, discDiameter, 0);
+
+            int indexTire = _stock.SearchTire(tire, numberTire);
+
+            if (indexTire > -1)
             {
-                Tire tireTemp = item.Key;
-                tireTemp.ShowInfo();
-                Console.WriteLine($": количество {item.Value}");
+                CompleteDeal(indexTire, numberTire);
+            }
+            else
+            {
+                PayFine();
             }
         }
 
-        private void PerformWork(Tire tire)
+        private void CompleteDeal(int indexTire, int numberTire)
         {
-            bool isWork = false;
-            int numberTireServes = 0;
-            string name = "";
-            int width = 0;
-            int profile = 0;
-            int discDiameter = 0;
-            int price = 0;
-            int profit = 0;
+            Console.WriteLine("Есть в наличии");
+            CalculateProfit(indexTire, numberTire);
+            _stock.DeleteTire(indexTire, numberTire);
+        }
 
-            foreach (var item in _tires)
+        private void CalculateProfit(int indexTire, int numberTire)
+        {
+            int price = _stock.GetPrice(indexTire);
+            int priceAll = price * numberTire;
+            Console.WriteLine($"Клиенту к оплате {priceAll}");
+            _money += priceAll;
+        }
+
+        private void PayFine()
+        {
+            Console.WriteLine(" Такой шины нету в наличии и сервис выплачивает штраф");
+            _money -= _fine;
+        }
+    }
+
+    class Stock
+    {
+        private List<List<Tire>> _listTire = new List<List<Tire>>();
+
+        public Stock()
+        {
+            AddTire();
+        }
+
+        public int SearchTire(Tire tireClient, int numberTire)
+        {
+            for (int i = 0; i < _listTire.Count; i++)
             {
-                Tire tireTemp = item.Key;
-                if (tireTemp.Name == tire.Name)
+                List<Tire> tires = _listTire[i];
+
+                if (tires.Count != 0)
                 {
-                    if (tireTemp.Width == tire.Width)
+                    Tire tireTemp = tires[0];
+
+                    if (tireClient.Name == tireTemp.Name)
                     {
-                        if (tireTemp.Profile == tire.Profile)
+                        if (tireClient.DiscDiameter == tireTemp.DiscDiameter)
                         {
-                            if (tireTemp.DiscDiameter == tire.DiscDiameter)
+                            if (tireClient.Width == tireTemp.Width)
                             {
-                                numberTireServes = _tires[tireTemp];
-
-                                if (numberTireServes > 0)
+                                if (tireClient.Profile == tireTemp.Profile)
                                 {
-                                    tireTemp.ShowInfo();
-                                    Console.WriteLine(" Есть в наличии.");
-                                    Console.WriteLine(" Сколько шин требуется клиенту");
-                                    int numberTireClient = Convert.ToInt32(Console.ReadLine());
-
-                                    if (numberTireClient <= numberTireServes)
+                                    if (numberTire <= tires.Count)
                                     {
-                                        profit = numberTireClient * tireTemp.Price;
-                                        isWork = true;
-                                        numberTireServes -= numberTireClient;
-                                        name = tireTemp.Name;
-                                        width = tireTemp.Width;
-                                        profile = tireTemp.Profile;
-                                        discDiameter = tireTemp.DiscDiameter;
-                                        price = tireTemp.Price;
-                                        Console.WriteLine(" Клиент доволен вы получили деньги за работу!");
-                                        _tires.Remove(tireTemp);
-                                        break;
-                                    }
-                                    else
-                                    {
-                                        Console.WriteLine(" Нету требуемого количества шин");
+                                        int indexTire = i;
+                                        return indexTire;
                                     }
                                 }
                             }
@@ -176,25 +184,64 @@ namespace HomeWorkAutoServes
                 }
             }
 
-            if (isWork == false)
+            return -1;
+        }
+
+        public int GetPrice(int indexTire)
+        {
+            List<Tire> tires = _listTire[indexTire];
+            Tire tireTemp = tires[0];
+            return tireTemp.Price;
+        }
+
+        public void ShowInfo()
+        {
+            for (int i = 0; i < _listTire.Count; i++)
             {
-                Console.WriteLine(" Такой шины нету в наличии и сервиси выплачивает штраф");
-                _money -= _fine;
+                List<Tire> tires = _listTire[i];
+
+                if (tires.Count != 0)
+                {
+                    for (int j = 0; j < 1; j++)
+                    {
+                        tires[j].ShowInfo();
+                        Console.Write($" Количество {tires.Count}");
+                    }
+                }              
             }
-            else
-            {
-                _money += profit;
-                _tires.Add(new Tire(name, width, profile, discDiameter, price), numberTireServes);
-            }
+        }
+
+        public void DeleteTire(int indexTire, int numberTire)
+        {
+            List<Tire> tires = _listTire[indexTire];
+            tires.RemoveRange(0, numberTire);
         }
 
         private void AddTire()
         {
-            _tires.Add(new Tire("Michelin", 195, 70, 14, 25), 40);
-            _tires.Add(new Tire("Bridgestone", 175, 65, 14, 25), 2);
-            _tires.Add(new Tire("Bridgestone", 185, 65, 17, 30), 10);
-            _tires.Add(new Tire("Goodyear", 185, 65, 17, 50), 4);
-            _tires.Add(new Tire("Continental", 195, 70, 14, 20), 0);
+            List<Tire> michelinW195P70R14 = new List<Tire>();
+            List<Tire> bridgestoneW185P65R17 = new List<Tire>();
+            List<Tire> x = new List<Tire>();
+            int number = 20;           
+
+            for (int i = 0; i < number; i++)
+            {
+                michelinW195P70R14.Add(new Tire("Michelin", 195, 70, 14, 25));
+            }
+            
+            for (int i = 0; i < number; i++)
+            {
+                bridgestoneW185P65R17.Add(new Tire("Bridgestone", 185, 65, 65, 30));
+            }
+
+            for (int i = 0; i < number; i++)
+            {
+                x.Add(new Tire("x", 185, 65, 65, 30));
+            }
+
+            _listTire.Add(michelinW195P70R14);
+            _listTire.Add(bridgestoneW185P65R17);
+            _listTire.Add(x);
         }
     }
 
@@ -217,7 +264,7 @@ namespace HomeWorkAutoServes
 
         public void ShowInfo()
         {
-            Console.Write($"Шина {Name}: Размеры {Width}/{Profile}/{DiscDiameter} : Цена за штуку {Price}");
+            Console.Write($"\nШина {Name}: Размеры {Width}/{Profile}/{DiscDiameter} : Цена за штуку {Price}");
         }
     }
 }
